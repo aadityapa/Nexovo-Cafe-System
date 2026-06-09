@@ -16,7 +16,7 @@
     "dev:admin": "npm run dev -w @cafe/admin-web",
     "build": "npm run build -w @cafe/contracts && npm run build -w @cafe/api",
     "build:api": "npm run build -w @cafe/api",
-    "lint": "npm run lint -w @cafe/contracts && npm run lint -w @cafe/api",
+    "lint": "npm run build -w @cafe/contracts && npm run lint -w @cafe/contracts && npm run lint -w @cafe/api",
     "lint:api": "npm run lint -w @cafe/api",
     "test": "npm run test -w @cafe/api",
     "prisma:generate": "npm run prisma:generate -w @cafe/api",

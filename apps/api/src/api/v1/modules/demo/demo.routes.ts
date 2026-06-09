@@ -264,11 +264,14 @@ demoRouter.get("/analytics", async (request, response, next) => {
     const revenue = orders
       .filter((o) => o.status === OrderStatus.COMPLETED)
       .reduce((sum, o) => sum + Number(o.totalAmount), 0);
-    const activeOrders = orders.filter((o) =>
-      [OrderStatus.PENDING, OrderStatus.CONFIRMED, OrderStatus.ACCEPTED, OrderStatus.PREPARING, OrderStatus.READY].includes(
-        o.status
-      )
-    ).length;
+    const activeStatuses: OrderStatus[] = [
+      OrderStatus.PENDING,
+      OrderStatus.CONFIRMED,
+      OrderStatus.ACCEPTED,
+      OrderStatus.PREPARING,
+      OrderStatus.READY
+    ];
+    const activeOrders = orders.filter((o) => activeStatuses.includes(o.status)).length;
     const avgTicket =
       orders.length > 0 ? orders.reduce((sum, o) => sum + Number(o.totalAmount), 0) / orders.length : 0;
 
