@@ -1,0 +1,28 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "types": []
+  },
+  "include": [
+    "src/app.ts",
+    "src/server.ts",
+    "src/common/**/*",
+    "src/config/**/*",
+    "src/middlewares/**/*",
+    "src/modules/**/*",
+    "src/routes/**/*",
+    "src/types/**/*",
+    "src/utils/**/*"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "src/api/**/*",
+    "src/lib/**/*",
+    "src/middleware/**/*",
+    "src/realtime/**/*",
+    "prisma/**/*",
+    "tests/**/*"
+  ]
+}

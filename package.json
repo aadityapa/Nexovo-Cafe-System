@@ -1,0 +1,33 @@
+{
+  "name": "cafe-platform",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Nexovo Cafe System — enterprise restaurant ERP, POS, KDS, and ordering (INR).",
+  "workspaces": [
+    "apps/*",
+    "packages/*",
+    "infra/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev:api",
+    "dev:all": "concurrently -n api,customer,admin -c blue,green,yellow \"npm run dev:api\" \"npm run dev:customer\" \"npm run dev:admin\"",
+    "dev:api": "npm run dev -w @cafe/api",
+    "dev:customer": "npm run dev -w @cafe/customer-web",
+    "dev:admin": "npm run dev -w @cafe/admin-web",
+    "build": "npm run build -w @cafe/contracts && npm run build -w @cafe/api",
+    "build:api": "npm run build -w @cafe/api",
+    "lint": "npm run lint -w @cafe/contracts && npm run lint -w @cafe/api",
+    "lint:api": "npm run lint -w @cafe/api",
+    "test": "npm run test -w @cafe/api",
+    "prisma:generate": "npm run prisma:generate -w @cafe/api",
+    "prisma:migrate": "npm run prisma:migrate -w @cafe/api",
+    "prisma:deploy": "npm run prisma:deploy -w @cafe/api",
+    "prisma:seed": "npm run prisma:seed -w @cafe/api"
+  },
+  "engines": {
+    "node": ">=20.11.0"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}

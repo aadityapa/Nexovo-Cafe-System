@@ -1,0 +1,48 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: cafe-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: cafe_platform
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    container_name: cafe-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    container_name: cafe-api
+    depends_on:
+      - postgres
+      - redis
+    environment:
+      NODE_ENV: development
+      PORT: 4000
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/cafe_platform?schema=public
+      CORS_ORIGIN: http://localhost:3000
+      JWT_ACCESS_SECRET: replace-with-strong-access-secret
+      JWT_REFRESH_SECRET: replace-with-strong-refresh-secret
+      JWT_ACCESS_TTL: 15m
+      JWT_REFRESH_TTL: 30d
+      BCRYPT_ROUNDS: 12
+      SWAGGER_SERVER_URL: http://localhost:4000
+    ports:
+      - "4000:4000"
+    command: sh -c "npm run prisma:generate -w @cafe/api && npm run prisma:deploy -w @cafe/api && npm run start -w @cafe/api"
+
+volumes:
+  postgres_data:

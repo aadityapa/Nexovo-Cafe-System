@@ -1,0 +1,15 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --sidebar: #0f0f12;
+  --panel: #18181b;
+  --accent: #f59e0b;
+}
+
+body {
+  background: #09090b;
+  color: #fafafa;
+  min-height: 100vh;
+}

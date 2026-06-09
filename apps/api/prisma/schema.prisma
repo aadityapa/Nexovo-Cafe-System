@@ -1,0 +1,721 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum RoleCode {
+  SUPER_ADMIN
+  RESTAURANT_OWNER
+  BRANCH_MANAGER
+  CASHIER
+  CHEF
+  WAITER
+  INVENTORY_MANAGER
+  ACCOUNTANT
+  CUSTOMER
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+}
+
+enum OrderType {
+  DINE_IN
+  TAKEAWAY
+  DELIVERY
+  QR_TABLE
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  ACCEPTED
+  PREPARING
+  READY
+  OUT_FOR_DELIVERY
+  COMPLETED
+  CANCELLED
+  REFUNDED
+}
+
+enum PaymentMethod {
+  RAZORPAY
+  STRIPE
+  CASH
+  CARD
+  UPI
+  WALLET
+  BANK_TRANSFER
+}
+
+enum PaymentStatus {
+  INITIATED
+  AUTHORIZED
+  CAPTURED
+  FAILED
+  REFUNDED
+  PARTIALLY_REFUNDED
+}
+
+enum StockMovementType {
+  IN
+  OUT
+  ADJUSTMENT
+  WASTAGE
+}
+
+enum ReservationStatus {
+  PENDING
+  CONFIRMED
+  SEATED
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+enum NotificationChannel {
+  EMAIL
+  SMS
+  PUSH
+  IN_APP
+  WHATSAPP
+}
+
+enum InvoiceType {
+  B2C
+  B2B
+}
+
+enum TaxType {
+  CGST
+  SGST
+  IGST
+  CESS
+}
+
+enum NotificationStatus {
+  QUEUED
+  SENT
+  FAILED
+  READ
+}
+
+enum LoyaltyTxnType {
+  EARN
+  REDEEM
+  ADJUSTMENT
+  EXPIRE
+}
+
+model User {
+  id             String         @id @default(uuid())
+  email          String         @unique
+  passwordHash   String
+  firstName      String
+  lastName       String?
+  phone          String?
+  status         UserStatus     @default(ACTIVE)
+  restaurantId   String?
+  branchId       String?
+  lastLoginAt    DateTime?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  deletedAt      DateTime?
+  userRoles      UserRole[]
+  refreshTokens  RefreshToken[]
+  auditLogs      AuditLog[]
+  staffProfile   StaffProfile?
+  notifications  Notification[]
+  restaurant     Restaurant?    @relation(fields: [restaurantId], references: [id])
+  branch         Branch?        @relation(fields: [branchId], references: [id])
+
+  @@index([restaurantId])
+  @@index([branchId])
+  @@index([status, createdAt])
+}
+
+model Role {
+  id              String           @id @default(uuid())
+  code            RoleCode         @unique
+  name            String
+  description     String?
+  isSystemDefault Boolean          @default(false)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  userRoles       UserRole[]
+  rolePermissions RolePermission[]
+}
+
+model Permission {
+  id              String           @id @default(uuid())
+  code            String           @unique
+  name            String
+  description     String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  rolePermissions RolePermission[]
+}
+
+model UserRole {
+  userId       String
+  roleId       String
+  restaurantId String?
+  branchId     String?
+  createdAt    DateTime @default(now())
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role         Role     @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@id([userId, roleId])
+  @@index([restaurantId, branchId])
+}
+
+model RolePermission {
+  roleId       String
+  permissionId String
+  createdAt    DateTime   @default(now())
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
+  @@index([revokedAt])
+}
+
+model AuditLog {
+  id           String   @id @default(uuid())
+  actorUserId  String?
+  action       String
+  resourceType String
+  resourceId   String?
+  metadata     Json?
+  ipAddress    String?
+  userAgent    String?
+  createdAt    DateTime @default(now())
+  actorUser    User?    @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([actorUserId, createdAt])
+  @@index([resourceType, resourceId])
+}
+
+model Restaurant {
+  id             String          @id @default(uuid())
+  name           String
+  legalName      String?
+  slug           String          @unique
+  timezone       String          @default("UTC")
+  currency       String          @default("USD")
+  isActive       Boolean         @default(true)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  branches       Branch[]
+  users          User[]
+  customers      Customer[]
+  menuCategories MenuCategory[]
+  menuItems      MenuItem[]
+  orders         Order[]
+  inventoryItems InventoryItem[]
+  staffProfiles  StaffProfile[]
+  tables         Table[]
+  reservations   Reservation[]
+  whatsappConfigs WhatsAppConfig[]
+  voiceAgentConfigs VoiceAgentConfig[]
+  kioskConfigs KioskConfig[]
+}
+
+model Branch {
+  id             String         @id @default(uuid())
+  restaurantId   String
+  name           String
+  code           String
+  addressLine1   String
+  addressLine2   String?
+  city           String
+  state          String?
+  country        String
+  postalCode     String?
+  phone          String?
+  email          String?
+  isActive       Boolean        @default(true)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  restaurant     Restaurant     @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  users          User[]
+  orders         Order[]
+  stockLevels    StockLevel[]
+  stockMovements StockMovement[]
+  tables         Table[]
+  reservations   Reservation[]
+  kioskConfigs   KioskConfig[]
+
+  @@unique([restaurantId, code])
+  @@index([restaurantId, isActive])
+}
+
+model Customer {
+  id             String          @id @default(uuid())
+  restaurantId   String
+  email          String?
+  phone          String?
+  firstName      String
+  lastName       String?
+  dateOfBirth    DateTime?
+  isActive       Boolean         @default(true)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  restaurant     Restaurant      @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  addresses      CustomerAddress[]
+  orders         Order[]
+  loyaltyAccount LoyaltyAccount?
+  notifications  Notification[]
+  reservations   Reservation[]
+  whatsappSessions WhatsAppSession[]
+  voiceInteractions AiVoiceInteraction[]
+
+  @@unique([restaurantId, email])
+  @@unique([restaurantId, phone])
+  @@index([restaurantId, createdAt])
+}
+
+model CustomerAddress {
+  id           String   @id @default(uuid())
+  customerId   String
+  label        String?
+  addressLine1 String
+  addressLine2 String?
+  city         String
+  state        String?
+  country      String
+  postalCode   String?
+  latitude     Decimal?
+  longitude    Decimal?
+  isDefault    Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  customer     Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@index([customerId, isDefault])
+}
+
+model MenuCategory {
+  id           String     @id @default(uuid())
+  restaurantId String
+  name         String
+  description  String?
+  sortOrder    Int        @default(0)
+  isActive     Boolean    @default(true)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  menuItems    MenuItem[]
+
+  @@unique([restaurantId, name])
+  @@index([restaurantId, isActive, sortOrder])
+}
+
+model MenuItem {
+  id              String                  @id @default(uuid())
+  categoryId      String
+  restaurantId    String
+  name            String
+  description     String?
+  sku             String?
+  imageUrl        String?
+  basePrice       Decimal                
+  taxRate         Decimal?               
+  isActive        Boolean                 @default(true)
+  isVegetarian    Boolean                 @default(false)
+  prepTimeMinutes Int?
+  createdAt       DateTime                @default(now())
+  updatedAt       DateTime                @updatedAt
+  category        MenuCategory            @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  restaurant      Restaurant              @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  modifierGroups  MenuItemModifierGroup[]
+  orderItems      OrderItem[]
+
+  @@unique([restaurantId, sku])
+  @@index([restaurantId, categoryId, isActive])
+}
+
+model ModifierGroup {
+  id           String                  @id @default(uuid())
+  restaurantId String
+  name         String
+  minSelect    Int                     @default(0)
+  maxSelect    Int?
+  isRequired   Boolean                 @default(false)
+  createdAt    DateTime                @default(now())
+  updatedAt    DateTime                @updatedAt
+  options      ModifierOption[]
+  menuItems    MenuItemModifierGroup[]
+
+  @@index([restaurantId, name])
+}
+
+model ModifierOption {
+  id              String        @id @default(uuid())
+  modifierGroupId String
+  name            String
+  priceDelta      Decimal       @default(0)
+  isActive        Boolean       @default(true)
+  sortOrder       Int           @default(0)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  modifierGroup   ModifierGroup @relation(fields: [modifierGroupId], references: [id], onDelete: Cascade)
+
+  @@index([modifierGroupId, isActive, sortOrder])
+}
+
+model MenuItemModifierGroup {
+  menuItemId      String
+  modifierGroupId String
+  createdAt       DateTime      @default(now())
+  menuItem        MenuItem      @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+  modifierGroup   ModifierGroup @relation(fields: [modifierGroupId], references: [id], onDelete: Cascade)
+
+  @@id([menuItemId, modifierGroupId])
+}
+
+model Order {
+  id             String       @id @default(uuid())
+  restaurantId   String
+  branchId       String
+  customerId     String?
+  reservationId  String?
+  orderNumber    String
+  orderType      OrderType
+  status         OrderStatus  @default(PENDING)
+  subtotalAmount Decimal     
+  discountAmount Decimal      @default(0)
+  taxAmount      Decimal      @default(0)
+  totalAmount    Decimal     
+  notes          String?
+  placedAt       DateTime     @default(now())
+  completedAt    DateTime?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  restaurant     Restaurant   @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  branch         Branch       @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  customer       Customer?    @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  reservation    Reservation?
+  orderItems     OrderItem[]
+  payments       Payment[]
+  invoice        Invoice?
+
+  @@unique([branchId, orderNumber])
+  @@index([branchId, status, placedAt])
+  @@index([restaurantId, placedAt])
+}
+
+model OrderItem {
+  id           String              @id @default(uuid())
+  orderId      String
+  menuItemId   String?
+  itemName     String
+  itemSku      String?
+  unitPrice    Decimal            
+  quantity     Int
+  lineTotal    Decimal            
+  specialNotes String?
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+  order        Order               @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  menuItem     MenuItem?           @relation(fields: [menuItemId], references: [id], onDelete: SetNull)
+  modifiers    OrderItemModifier[]
+
+  @@index([orderId])
+}
+
+model OrderItemModifier {
+  id                 String    @id @default(uuid())
+  orderItemId        String
+  modifierName       String
+  modifierOptionName String
+  priceDelta         Decimal   @default(0)
+  quantity           Int       @default(1)
+  createdAt          DateTime  @default(now())
+  orderItem          OrderItem @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
+
+  @@index([orderItemId])
+}
+
+model Payment {
+  id              String        @id @default(uuid())
+  orderId         String
+  method          PaymentMethod
+  status          PaymentStatus @default(INITIATED)
+  gatewayProvider String?
+  gatewayTxnRef   String?
+  amount          Decimal      
+  currency        String        @default("USD")
+  initiatedAt     DateTime      @default(now())
+  settledAt       DateTime?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  order           Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId, status])
+  @@index([gatewayTxnRef])
+}
+
+model Invoice {
+  id              String      @id @default(uuid())
+  orderId         String      @unique
+  invoiceNumber   String      @unique
+  type            InvoiceType @default(B2C)
+  customerGstin   String?
+  subtotalAmount  Decimal    
+  taxAmount       Decimal    
+  totalAmount     Decimal    
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  order           Order       @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  gstBreakups     GstBreakup[]
+}
+
+model GstBreakup {
+  id          String   @id @default(uuid())
+  invoiceId   String
+  taxType     TaxType
+  rate        Decimal 
+  taxable     Decimal 
+  amount      Decimal 
+  invoice     Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([invoiceId, taxType])
+}
+
+model InventoryItem {
+  id             String          @id @default(uuid())
+  restaurantId   String
+  sku            String
+  name           String
+  unit           String
+  reorderLevel   Decimal?       
+  isActive       Boolean         @default(true)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  restaurant     Restaurant      @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  stockLevels    StockLevel[]
+  stockMovements StockMovement[]
+
+  @@unique([restaurantId, sku])
+  @@index([restaurantId, isActive])
+}
+
+model StockLevel {
+  branchId        String
+  inventoryItemId String
+  availableQty    Decimal       @default(0)
+  reservedQty     Decimal       @default(0)
+  updatedAt       DateTime      @updatedAt
+  branch          Branch        @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  inventoryItem   InventoryItem @relation(fields: [inventoryItemId], references: [id], onDelete: Cascade)
+
+  @@id([branchId, inventoryItemId])
+}
+
+model StockMovement {
+  id              String            @id @default(uuid())
+  branchId        String
+  inventoryItemId String
+  movementType    StockMovementType
+  quantity        Decimal          
+  reason          String?
+  referenceType   String?
+  referenceId     String?
+  createdAt       DateTime          @default(now())
+  branch          Branch            @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  inventoryItem   InventoryItem     @relation(fields: [inventoryItemId], references: [id], onDelete: Cascade)
+
+  @@index([branchId, createdAt])
+  @@index([inventoryItemId, createdAt])
+}
+
+model StaffProfile {
+  id           String     @id @default(uuid())
+  restaurantId String
+  userId       String     @unique
+  employeeCode String
+  designation  String
+  joinedAt     DateTime?
+  isActive     Boolean    @default(true)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([restaurantId, employeeCode])
+  @@index([restaurantId, isActive])
+}
+
+model Table {
+  id              String        @id @default(uuid())
+  restaurantId    String
+  branchId        String
+  tableCode       String
+  seatingCapacity Int
+  qrCodeUrl       String?
+  isActive        Boolean       @default(true)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  restaurant      Restaurant    @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  branch          Branch        @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  reservations    Reservation[]
+
+  @@unique([branchId, tableCode])
+  @@index([restaurantId, branchId, isActive])
+}
+
+model Reservation {
+  id           String            @id @default(uuid())
+  restaurantId String
+  branchId     String
+  tableId      String?
+  customerId   String
+  orderId      String?           @unique
+  partySize    Int
+  reservedFor  DateTime
+  status       ReservationStatus @default(PENDING)
+  notes        String?
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+  restaurant   Restaurant        @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  branch       Branch            @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  table        Table?            @relation(fields: [tableId], references: [id], onDelete: SetNull)
+  customer     Customer          @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  order        Order?            @relation(fields: [orderId], references: [id], onDelete: SetNull)
+
+  @@index([branchId, reservedFor, status])
+}
+
+model Notification {
+  id         String             @id @default(uuid())
+  userId     String?
+  customerId String?
+  channel    NotificationChannel
+  subject    String?
+  message    String
+  status     NotificationStatus @default(QUEUED)
+  metadata   Json?
+  sentAt     DateTime?
+  createdAt  DateTime           @default(now())
+  updatedAt  DateTime           @updatedAt
+  user       User?              @relation(fields: [userId], references: [id], onDelete: SetNull)
+  customer   Customer?          @relation(fields: [customerId], references: [id], onDelete: SetNull)
+
+  @@index([userId, status, createdAt])
+  @@index([customerId, status, createdAt])
+}
+
+model LoyaltyAccount {
+  id            String               @id @default(uuid())
+  customerId    String               @unique
+  pointsBalance Int                  @default(0)
+  tier          String               @default("BRONZE")
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+  customer      Customer             @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  transactions  LoyaltyTransaction[]
+}
+
+model LoyaltyTransaction {
+  id               String         @id @default(uuid())
+  loyaltyAccountId String
+  txnType          LoyaltyTxnType
+  points           Int
+  description      String?
+  referenceType    String?
+  referenceId      String?
+  createdAt        DateTime       @default(now())
+  loyaltyAccount   LoyaltyAccount @relation(fields: [loyaltyAccountId], references: [id], onDelete: Cascade)
+
+  @@index([loyaltyAccountId, createdAt])
+}
+
+model WhatsAppConfig {
+  id            String     @id @default(uuid())
+  restaurantId  String
+  provider      String
+  phoneNumberId String
+  webhookSecret String?
+  isActive      Boolean    @default(true)
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+  restaurant    Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  sessions      WhatsAppSession[]
+}
+
+model WhatsAppSession {
+  id                String             @id @default(uuid())
+  configId          String
+  customerId        String?
+  externalSessionId String?
+  status            NotificationStatus @default(QUEUED)
+  latestIntent      String?
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  config            WhatsAppConfig     @relation(fields: [configId], references: [id], onDelete: Cascade)
+  customer          Customer?          @relation(fields: [customerId], references: [id], onDelete: SetNull)
+
+  @@index([configId, status, updatedAt])
+}
+
+model VoiceAgentConfig {
+  id           String     @id @default(uuid())
+  restaurantId String
+  provider     String
+  voiceModel   String
+  languageCode String
+  isActive     Boolean    @default(true)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  interactions AiVoiceInteraction[]
+}
+
+model AiVoiceInteraction {
+  id           String             @id @default(uuid())
+  configId     String
+  customerId   String?
+  transcript   String?
+  intent       String?
+  confidence   Decimal?          
+  status       NotificationStatus @default(QUEUED)
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+  config       VoiceAgentConfig   @relation(fields: [configId], references: [id], onDelete: Cascade)
+  customer     Customer?          @relation(fields: [customerId], references: [id], onDelete: SetNull)
+}
+
+model KioskConfig {
+  id           String     @id @default(uuid())
+  restaurantId String
+  branchId     String?
+  name         String
+  authPinHash  String?
+  isActive     Boolean    @default(true)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  branch       Branch?    @relation(fields: [branchId], references: [id], onDelete: SetNull)
+
+  @@index([restaurantId, branchId, isActive])
+}
